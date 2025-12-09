@@ -4,17 +4,9 @@ import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.extra.ui.theme.ExtraTheme
+import android.widget.Button
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
 import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.CapabilityInfo
@@ -23,31 +15,34 @@ import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.MessageClient
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 import java.nio.charset.StandardCharsets
 
-class MainActivity : ComponentActivity(),
+class MainActivity : AppCompatActivity(),
     CoroutineScope by MainScope(),
     DataClient.OnDataChangedListener,
     MessageClient.OnMessageReceivedListener,
     CapabilityClient.OnCapabilityChangedListener {
 
-        var activityContext: Context?=null
+    private var activityContext: Context? = null
+    private lateinit var sensorTextView: TextView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        activityContext=this
-        /*enableEdgeToEdge()
-        setContent {
-            ExtraTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
-            }
-        }*/
+        setContentView(R.layout.activity_main)
+        activityContext = this
+
+        sensorTextView = findViewById(R.id.sensor_text_view)
+
+        val connectButton: Button = findViewById(R.id.connect_watch_btn)
+        connectButton.setOnClickListener {
+            getNodes(this)
+        }
     }
+
     private fun getNodes(context: Context) {
         launch(Dispatchers.Default) {
             val nodeList = Wearable.getNodeClient(context).connectedNodes
@@ -66,10 +61,10 @@ class MainActivity : ComponentActivity(),
     override fun onPause() {
         super.onPause()
         try {
-            Wearable.getDataClient(activityContext!!).removeListener (this)
-            Wearable.getMessageClient(activityContext!!).removeListener (this)
-            Wearable.getCapabilityClient(activityContext!!).removeListener (this)
-        }catch (e: Exception){
+            Wearable.getDataClient(activityContext!!).removeListener(this)
+            Wearable.getMessageClient(activityContext!!).removeListener(this)
+            Wearable.getCapabilityClient(activityContext!!).removeListener(this)
+        } catch (e: Exception) {
             Log.d("onPause", e.toString())
         }
     }
@@ -77,11 +72,11 @@ class MainActivity : ComponentActivity(),
     override fun onResume() {
         super.onResume()
         try {
-            Wearable.getDataClient(activityContext!!).addListener (this)
-            Wearable.getMessageClient(activityContext!!).addListener (this)
+            Wearable.getDataClient(activityContext!!).addListener(this)
+            Wearable.getMessageClient(activityContext!!).addListener(this)
             Wearable.getCapabilityClient(activityContext!!)
-                .addListener (this, Uri.parse("wear://"), CapabilityClient.FILTER_REACHABLE)
-        }catch (e: Exception){
+                .addListener(this, Uri.parse("wear://"), CapabilityClient.FILTER_REACHABLE)
+        } catch (e: Exception) {
             Log.d("onResume", e.toString())
         }
     }
@@ -91,30 +86,16 @@ class MainActivity : ComponentActivity(),
     }
 
     override fun onMessageReceived(ME: MessageEvent) {
-        Log.d("onMessageReceived", ME.toString())
-        Log.d("onMessageReceived", "nodo ${ME.sourceNodeId}")
-        Log.d("onMessageReceived", "Payload: ${ME.path}")
-        val message= String(ME.data, StandardCharsets.UTF_8)
-        Log.d("onMessageReceived", "Mensaje: ${message}")
+        if (ME.path == "/sensor_data") {
+            val message = String(ME.data, StandardCharsets.UTF_8)
+            runOnUiThread {
+                sensorTextView.text = message
+            }
+            Log.d("onMessageReceived", "Message: $message")
+        }
     }
 
     override fun onCapabilityChanged(p0: CapabilityInfo) {
 
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    ExtraTheme {
-        Greeting("Android")
     }
 }
